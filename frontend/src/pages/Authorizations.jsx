@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { FileSignature, Plus, Pencil, Trash2, Printer, Download, Upload, FileCheck, X } from "lucide-react";
+import { FileSignature, Plus, Pencil, Trash2, Printer, Download, Upload, FileCheck, X, ChevronDown, ChevronUp, Check, Clock } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/api";
 import { useI18n } from "@/i18n";
@@ -19,30 +19,12 @@ const AUTH_TYPES = {
 };
 
 const TEMPLATE_TEXT = {
-  general:
-    "Autorizo a mi hijo/a a participar en todas las actividades deportivas, entrenamientos y " +
-    "partidos organizados por el club durante la temporada, así como a recibir la atención " +
-    "necesaria en caso de accidente leve.",
-  imagen:
-    "Autorizo el uso de la imagen de mi hijo/a en fotografías y vídeos del club con fines " +
-    "informativos y de difusión de las actividades deportivas, sin contraprestación económica " +
-    "y respetando en todo momento la dignidad del menor.",
-  medica:
-    "Autorizo al club a tomar las medidas oportunas en caso de urgencia médica cuando no sea " +
-    "posible contactar con el/los tutor/es. Declaro estar informado/a del estado de salud de " +
-    "mi hijo/a y no tener conocimiento de impedimento médico para la práctica deportiva.",
-  desplazamientos:
-    "Autorizo los desplazamientos de mi hijo/a en los vehículos del club o de otros " +
-    "progenitores/tutores a los distintos campos y localizaciones donde se disputen los " +
-    "partidos y actividades organizadas por el club.",
-  recogida:
-    "Autorizo a la persona indicada a continuación a recoger a mi hijo/a tras los " +
-    "entrenamientos y partidos del club, en los casos en que yo no pueda hacerlo personalmente.",
-  proteccion_datos:
-    "Doy mi consentimiento informado para el tratamiento de los datos personales de mi " +
-    "hijo/a conforme al Reglamento (UE) 2016/679 (RGPD) y la Ley Orgánica 3/2018 (LOPDGDD). " +
-    "Los datos serán utilizados exclusivamente para la gestión de las actividades del club y " +
-    "no serán cedidos a terceros sin consentimiento expreso.",
+  general: "Autorizo a mi hijo/a a participar en todas las actividades deportivas, entrenamientos y partidos organizados por el club durante la temporada, así como a recibir la atención necesaria en caso de accidente leve.",
+  imagen: "Autorizo el uso de la imagen de mi hijo/a en fotografías y vídeos del club con fines informativos y de difusión de las actividades deportivas, sin contraprestación económica y respetando en todo momento la dignidad del menor.",
+  medica: "Autorizo al club a tomar las medidas oportunas en caso de urgencia médica cuando no sea posible contactar con el/los tutor/es. Declaro estar informado/a del estado de salud de mi hijo/a y no tener conocimiento de impedimento médico para la práctica deportiva.",
+  desplazamientos: "Autorizo los desplazamientos de mi hijo/a en los vehículos del club o de otros progenitores/tutores a los distintos campos y localizaciones donde se disputen los partidos y actividades organizadas por el club.",
+  recogida: "Autorizo a la persona indicada a continuación a recoger a mi hijo/a tras los entrenamientos y partidos del club, en los casos en que yo no pueda hacerlo personalmente.",
+  proteccion_datos: "Doy mi consentimiento informado para el tratamiento de los datos personales de mi hijo/a conforme al Reglamento (UE) 2016/679 (RGPD) y la Ley Orgánica 3/2018 (LOPDGDD). Los datos serán utilizados exclusivamente para la gestión de las actividades del club y no serán cedidos a terceros sin consentimiento expreso.",
 };
 
 const buildAuthHTML = (auth, player, settings, lang) => {
@@ -56,14 +38,13 @@ const buildAuthHTML = (auth, player, settings, lang) => {
   const jugadorNombre = player ? `${player.nombre} ${player.apellidos || ""}`.trim() : "________________";
   const firmante = auth.firmante || "________________";
   const fecha = auth.fecha_firma || "____________";
-
   return `
     <div style="font-family:Georgia,serif;color:#1a1a1a;max-width:680px;margin:0 auto;padding:40px 48px;box-sizing:border-box;">
       <div style="display:flex;align-items:center;gap:20px;border-bottom:3px solid #1a1a1a;padding-bottom:16px;margin-bottom:28px;">
         ${clubLogo ? `<img src="${clubLogo}" alt="" style="height:72px;width:72px;object-fit:contain;" />` : ""}
         <div>
-          <div style="font-size:22px;font-weight:700;letter-spacing:0.5px;">${clubNombre}</div>
-          ${clubDireccion ? `<div style="font-size:12px;color:#444;margin-top:2px;">${clubDireccion}</div>` : ""}
+          <div style="font-size:22px;font-weight:700;">${clubNombre}</div>
+          ${clubDireccion ? `<div style="font-size:12px;color:#444;">${clubDireccion}</div>` : ""}
           ${clubEmail || clubTelefono ? `<div style="font-size:12px;color:#444;">${[clubEmail, clubTelefono].filter(Boolean).join(" · ")}</div>` : ""}
         </div>
       </div>
@@ -97,8 +78,7 @@ const buildAuthHTML = (auth, player, settings, lang) => {
       <div style="margin-top:40px;border-top:1px solid #ddd;padding-top:10px;font-size:10px;color:#999;text-align:center;">
         ${clubNombre} · Documento generado el ${new Date().toLocaleDateString("es-ES")} · Protección de datos: conforme al RGPD (UE) 2016/679
       </div>
-    </div>
-  `;
+    </div>`;
 };
 
 const Authorizations = () => {
@@ -110,7 +90,9 @@ const Authorizations = () => {
   const [dialog, setDialog] = useState(false);
   const [form, setForm] = useState({ tipo: "general", estado: "pendiente" });
   const [printItem, setPrintItem] = useState(null);
-  const [viewSigned, setViewSigned] = useState(null); // auth cuyo PDF firmado se previsualiza
+  const [bulkForm, setBulkForm] = useState({ player_id: "", firmante: "" });
+  const [bulkDialog, setBulkDialog] = useState(false);
+  const [expanded, setExpanded] = useState({}); // { player_id: true/false }
   const uploadRefs = useRef({});
 
   const load = async () => setAuths((await api.get("/authorizations")).data);
@@ -118,45 +100,16 @@ const Authorizations = () => {
     load();
     api.get("/players").then((r) => setPlayers(r.data));
     api.get("/settings").then((r) => setSettings(r.data));
-    if (params.get("new")) { openNew(); params.delete("new"); setParams(params); }
+    if (params.get("new")) { setBulkDialog(true); params.delete("new"); setParams(params); }
     // eslint-disable-next-line
   }, []);
 
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
-  const [bulkMode, setBulkMode] = useState(false);
-  const [bulkForm, setBulkForm] = useState({ player_id: "", firmante: "" });
-  const [bulkDialog, setBulkDialog] = useState(false);
-  const openNew = () => { setBulkForm({ player_id: "", firmante: "" }); setBulkDialog(true); };
-  const openEdit = (a) => { setBulkMode(false); setForm(a); setDialog(true); };
+  const openEdit = (a) => { setForm(a); setDialog(true); };
   const save = async () => {
     if (form.id) await api.put(`/authorizations/${form.id}`, form);
     else await api.post("/authorizations", form);
     toast.success(t("saved")); setDialog(false); load();
-  };
-
-  const saveBulk = async () => {
-    if (!bulkForm.player_id) { toast.error("Selecciona un jugador"); return; }
-    // Verificar cuáles ya existen para este jugador
-    const existing = auths.filter((a) => a.player_id === bulkForm.player_id).map((a) => a.tipo);
-    const tipos = Object.keys(AUTH_TYPES);
-    const toCreate = tipos.filter((t) => !existing.includes(t));
-    if (toCreate.length === 0) {
-      toast.error("Este jugador ya tiene las 6 autorizaciones creadas");
-      return;
-    }
-    await Promise.all(
-      toCreate.map((tipo) =>
-        api.post("/authorizations", {
-          player_id: bulkForm.player_id,
-          firmante: bulkForm.firmante,
-          tipo,
-          estado: "pendiente",
-        })
-      )
-    );
-    toast.success(`${toCreate.length} autorización(es) creadas`);
-    setBulkDialog(false);
-    load();
   };
   const remove = async (a) => {
     if (!window.confirm(t("confirmDelete"))) return;
@@ -164,189 +117,202 @@ const Authorizations = () => {
     toast.success(t("deleted")); load();
   };
 
-  const getPlayer = (id) => players.find((p) => p.id === id);
-
-  // Imprimir
-  const doPrint = (a) => {
-    setPrintItem(a);
-    setTimeout(() => window.print(), 300);
+  const saveBulk = async () => {
+    if (!bulkForm.player_id) { toast.error("Selecciona un jugador"); return; }
+    const existing = auths.filter((a) => a.player_id === bulkForm.player_id).map((a) => a.tipo);
+    const toCreate = Object.keys(AUTH_TYPES).filter((t) => !existing.includes(t));
+    if (toCreate.length === 0) { toast.error("Este jugador ya tiene las 6 autorizaciones"); return; }
+    await Promise.all(toCreate.map((tipo) =>
+      api.post("/authorizations", { player_id: bulkForm.player_id, firmante: bulkForm.firmante, tipo, estado: "pendiente" })
+    ));
+    toast.success(`${toCreate.length} autorizaciones creadas`);
+    setBulkDialog(false);
+    // Expandir automáticamente al jugador recién creado
+    setExpanded((e) => ({ ...e, [bulkForm.player_id]: true }));
+    load();
   };
 
-  // Descargar PDF en blanco (para imprimir y firmar a mano)
+  const getPlayer = (id) => players.find((p) => p.id === id);
+  const doPrint = (a) => { setPrintItem(a); setTimeout(() => window.print(), 300); };
+
   const doDownloadPdf = async (a) => {
     const player = getPlayer(a.player_id);
     const html = buildAuthHTML(a, player, settings, lang);
     const container = document.createElement("div");
     container.innerHTML = html;
-    container.style.position = "fixed";
-    container.style.left = "-9999px";
-    container.style.top = "0";
+    container.style.cssText = "position:fixed;left:-9999px;top:0;";
     document.body.appendChild(container);
     const tipoSlug = (AUTH_TYPES[a.tipo]?.[lang] || a.tipo).toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
     const jugadorSlug = player ? `${player.nombre}_${player.apellidos || ""}`.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "") : "jugador";
-    const filename = `autorizacion_${tipoSlug}_${jugadorSlug}.pdf`;
     if (window.html2pdf) {
       await window.html2pdf().set({
-        margin: [10, 10, 10, 10], filename,
+        margin: [10,10,10,10], filename: `autorizacion_${tipoSlug}_${jugadorSlug}.pdf`,
         image: { type: "jpeg", quality: 0.98 },
         html2canvas: { scale: 2, useCORS: true },
         jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       }).from(container).save();
-    } else {
-      toast.error("Error al generar PDF. Usa el botón de imprimir.");
-    }
+    } else { toast.error("Error al generar PDF. Usa imprimir."); }
     document.body.removeChild(container);
   };
 
-  // Subir PDF firmado
   const doUploadSigned = async (authId, file) => {
-    const fd = new FormData();
-    fd.append("file", file);
+    const fd = new FormData(); fd.append("file", file);
     try {
-      await api.post(`/authorizations/${authId}/upload-signed`, fd, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      toast.success("Autorización firmada subida correctamente");
-      load();
-    } catch (e) {
-      toast.error(e.response?.data?.detail || "Error al subir el archivo");
-    }
+      await api.post(`/authorizations/${authId}/upload-signed`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      toast.success("PDF firmado subido"); load();
+    } catch (e) { toast.error(e.response?.data?.detail || "Error al subir"); }
   };
 
-  // Ver PDF firmado
   const doViewSigned = (a) => {
-    const backendUrl = process.env.REACT_APP_BACKEND_URL || "";
-    const url = `${backendUrl}/api/authorizations/${a.id}/signed-file`;
+    const url = `${process.env.REACT_APP_BACKEND_URL || ""}/api/authorizations/${a.id}/signed-file`;
     window.open(url, "_blank");
   };
 
-  // Descargar PDF firmado
-  const doDownloadSigned = (a) => {
-    const backendUrl = process.env.REACT_APP_BACKEND_URL || "";
-    const url = `${backendUrl}/api/authorizations/${a.id}/signed-file`;
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `autorizacion_firmada_${a.id}.pdf`;
-    link.click();
+  const doDeleteSigned = async (a) => {
+    if (!window.confirm("¿Eliminar el PDF firmado?")) return;
+    await api.delete(`/authorizations/${a.id}/signed-file`);
+    toast.success("PDF firmado eliminado"); load();
   };
 
-  // Eliminar PDF firmado
-  const doDeleteSigned = async (a) => {
-    if (!window.confirm("¿Eliminar el PDF firmado? La autorización volverá a estado pendiente.")) return;
-    await api.delete(`/authorizations/${a.id}/signed-file`);
-    toast.success("PDF firmado eliminado");
-    load();
-  };
+  // Agrupar autorizaciones por jugador
+  const byPlayer = auths.reduce((acc, a) => {
+    const key = a.player_id || "sin-jugador";
+    if (!acc[key]) acc[key] = { player_id: a.player_id, player_nombre: a.player_nombre, items: [] };
+    acc[key].items.push(a);
+    return acc;
+  }, {});
+
+  const playerGroups = Object.values(byPlayer).sort((a, b) =>
+    (a.player_nombre || "").localeCompare(b.player_nombre || "")
+  );
 
   const playerOptions = players.map((p) => ({ value: p.id, label: `${p.nombre} ${p.apellidos || ""}`.trim() }));
   const typeOptions = Object.entries(AUTH_TYPES).map(([k, v]) => ({ value: k, label: v[lang] }));
 
+  const toggleExpand = (pid) => setExpanded((e) => ({ ...e, [pid]: !e[pid] }));
+
+  const AuthRow = ({ a }) => (
+    <div className="flex items-center gap-2 px-4 py-2 border-t border-slate-100 bg-white hover:bg-slate-50/60 text-sm">
+      <div className="w-48 flex-shrink-0 text-slate-600">{AUTH_TYPES[a.tipo]?.[lang] || a.tipo}</div>
+      <div className="w-24 flex-shrink-0"><StatusBadge status={a.estado} /></div>
+      <div className="w-28 flex-shrink-0 text-xs text-slate-400">{a.fecha_firma || "—"}</div>
+      <div className="flex-shrink-0">
+        {a.archivo_firmado
+          ? <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium"><FileCheck className="h-3 w-3" />PDF subido</span>
+          : <span className="text-xs text-slate-300">Sin subir</span>}
+      </div>
+      <div className="flex-1" />
+      <div className="flex gap-1">
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-blue-600" title="Descargar PDF" onClick={() => doDownloadPdf(a)}><Download className="h-3.5 w-3.5" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-primary" title="Imprimir" onClick={() => doPrint(a)}><Printer className="h-3.5 w-3.5" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-orange-500" title="Subir firmada" onClick={() => uploadRefs.current[a.id]?.click()}><Upload className="h-3.5 w-3.5" /></Button>
+        <input type="file" accept=".pdf,image/*" ref={(el) => (uploadRefs.current[a.id] = el)} style={{ display: "none" }}
+          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) doUploadSigned(a.id, f); }} />
+        {a.archivo_firmado && (
+          <>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-emerald-600" title="Ver firmada" onClick={() => doViewSigned(a)}><FileCheck className="h-3.5 w-3.5" /></Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400" title="Eliminar firmada" onClick={() => doDeleteSigned(a)}><X className="h-3.5 w-3.5" /></Button>
+          </>
+        )}
+        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => openEdit(a)}><Pencil className="h-3.5 w-3.5" /></Button>
+        <Button variant="ghost" size="icon" className="h-7 w-7 text-red-500" onClick={() => remove(a)}><Trash2 className="h-3.5 w-3.5" /></Button>
+      </div>
+    </div>
+  );
+
   return (
     <div data-testid="authorizations-page">
-      <PageHeader
-        title={t("authorizations")}
-        icon={FileSignature}
+      <PageHeader title={t("authorizations")} icon={FileSignature}
         action={
-          <Button data-testid="add-auth-btn" onClick={openNew} className="h-11 px-5">
+          <Button data-testid="add-auth-btn" onClick={() => { setBulkForm({ player_id: "", firmante: "" }); setBulkDialog(true); }} className="h-11 px-5">
             <Plus className="h-5 w-5" />{t("newAuthorization")}
           </Button>
         }
       />
 
-      {auths.length === 0 ? (
+      {playerGroups.length === 0 ? (
         <EmptyState icon={FileSignature} message={t("noData")}
-          action={<Button onClick={openNew} className="h-11"><Plus className="h-5 w-5" />{t("newAuthorization")}</Button>} />
+          action={<Button onClick={() => setBulkDialog(true)} className="h-11"><Plus className="h-5 w-5" />{t("newAuthorization")}</Button>} />
       ) : (
-        <div className="rounded-xl border border-white/60 bg-white/70 backdrop-blur-xl overflow-hidden no-print">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-50 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
-                <tr>
-                  <th className="px-4 py-3">{t("name")}</th>
-                  <th className="px-4 py-3 hidden sm:table-cell">{t("authType")}</th>
-                  <th className="px-4 py-3 hidden md:table-cell">{t("signDate")}</th>
-                  <th className="px-4 py-3">{t("status")}</th>
-                  <th className="px-4 py-3 hidden lg:table-cell">Firmada</th>
-                  <th className="px-4 py-3 text-right">{t("actions")}</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {auths.map((a) => (
-                  <tr key={a.id} data-testid={`auth-row-${a.id}`} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 font-semibold text-slate-800">{a.player_nombre}</td>
-                    <td className="px-4 py-3 hidden sm:table-cell text-slate-600">{AUTH_TYPES[a.tipo]?.[lang] || a.tipo}</td>
-                    <td className="px-4 py-3 hidden md:table-cell text-slate-600">{a.fecha_firma || "—"}</td>
-                    <td className="px-4 py-3"><StatusBadge status={a.estado} /></td>
-                    <td className="px-4 py-3 hidden lg:table-cell">
-                      {a.archivo_firmado ? (
-                        <div className="flex items-center gap-1">
-                          <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium">
-                            <FileCheck className="h-3.5 w-3.5" /> PDF subido
-                          </span>
+        <div className="space-y-2 no-print">
+          {playerGroups.map((group) => {
+            const isOpen = !!expanded[group.player_id];
+            const firmadas = group.items.filter((a) => a.estado === "firmada").length;
+            const pendientes = group.items.filter((a) => a.estado === "pendiente").length;
+            const total = group.items.length;
+            return (
+              <div key={group.player_id} className="rounded-xl border border-white/60 bg-white/70 backdrop-blur-xl overflow-hidden">
+                {/* Cabecera del grupo — fila del jugador */}
+                <button
+                  onClick={() => toggleExpand(group.player_id)}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-slate-50/80 transition-colors text-left"
+                >
+                  {isOpen ? <ChevronUp className="h-4 w-4 text-slate-400 flex-shrink-0" /> : <ChevronDown className="h-4 w-4 text-slate-400 flex-shrink-0" />}
+                  <span className="font-semibold text-slate-800 flex-1">{group.player_nombre || "—"}</span>
+                  {/* Contadores */}
+                  <div className="flex items-center gap-2 text-xs">
+                    <span className="text-slate-400">{total}/6</span>
+                    {firmadas > 0 && (
+                      <span className="inline-flex items-center gap-1 text-emerald-600 font-medium">
+                        <Check className="h-3 w-3" />{firmadas} firmada{firmadas !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                    {pendientes > 0 && (
+                      <span className="inline-flex items-center gap-1 text-amber-500 font-medium">
+                        <Clock className="h-3 w-3" />{pendientes} pendiente{pendientes !== 1 ? "s" : ""}
+                      </span>
+                    )}
+                    {total < 6 && (
+                      <span className="text-red-400 font-medium">{6 - total} sin crear</span>
+                    )}
+                  </div>
+                </button>
+
+                {/* Detalle de las 6 autorizaciones — desplegable */}
+                {isOpen && (
+                  <div>
+                    {/* Cabecera columnas */}
+                    <div className="flex items-center gap-2 px-4 py-1.5 bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-400 border-t border-slate-100">
+                      <div className="w-48">Tipo</div>
+                      <div className="w-24">Estado</div>
+                      <div className="w-28">Fecha firma</div>
+                      <div className="flex-shrink-0">PDF firmado</div>
+                      <div className="flex-1" />
+                      <div>Acciones</div>
+                    </div>
+                    {/* Filas de autorizaciones existentes */}
+                    {group.items
+                      .sort((a, b) => Object.keys(AUTH_TYPES).indexOf(a.tipo) - Object.keys(AUTH_TYPES).indexOf(b.tipo))
+                      .map((a) => <AuthRow key={a.id} a={a} />)}
+                    {/* Tipos que faltan por crear */}
+                    {Object.keys(AUTH_TYPES)
+                      .filter((tipo) => !group.items.some((a) => a.tipo === tipo))
+                      .map((tipo) => (
+                        <div key={tipo} className="flex items-center gap-2 px-4 py-2 border-t border-slate-100 bg-slate-50/40 text-sm opacity-60">
+                          <div className="w-48 text-slate-400 italic">{AUTH_TYPES[tipo]?.[lang]}</div>
+                          <div className="w-24 text-xs text-slate-300">Sin crear</div>
+                          <div className="flex-1" />
+                          <Button variant="ghost" size="sm" className="h-7 text-xs text-slate-400 hover:text-primary"
+                            onClick={() => { setForm({ player_id: group.player_id, tipo, estado: "pendiente" }); setDialog(true); }}>
+                            + Crear
+                          </Button>
                         </div>
-                      ) : (
-                        <span className="text-xs text-slate-400">Sin subir</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex justify-end gap-1 flex-wrap">
-                        {/* Descargar PDF en blanco */}
-                        <Button variant="ghost" size="icon" title="Descargar PDF (para imprimir y firmar)" onClick={() => doDownloadPdf(a)} className="text-blue-600">
-                          <Download className="h-4 w-4" />
-                        </Button>
-                        {/* Imprimir */}
-                        <Button variant="ghost" size="icon" title="Imprimir" onClick={() => doPrint(a)} className="text-primary">
-                          <Printer className="h-4 w-4" />
-                        </Button>
-                        {/* Subir firmada */}
-                        <Button variant="ghost" size="icon" title="Subir PDF firmado" onClick={() => uploadRefs.current[a.id]?.click()} className="text-orange-500">
-                          <Upload className="h-4 w-4" />
-                        </Button>
-                        <input
-                          type="file"
-                          accept=".pdf,image/*"
-                          ref={(el) => (uploadRefs.current[a.id] = el)}
-                          style={{ display: "none" }}
-                          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; if (f) doUploadSigned(a.id, f); }}
-                        />
-                        {/* Ver/descargar firmada (solo si existe) */}
-                        {a.archivo_firmado && (
-                          <>
-                            <Button variant="ghost" size="icon" title="Ver PDF firmado" onClick={() => doViewSigned(a)} className="text-emerald-600">
-                              <FileCheck className="h-4 w-4" />
-                            </Button>
-                            <Button variant="ghost" size="icon" title="Eliminar PDF firmado" onClick={() => doDeleteSigned(a)} className="text-red-400">
-                              <X className="h-4 w-4" />
-                            </Button>
-                          </>
-                        )}
-                        {/* Editar */}
-                        <Button variant="ghost" size="icon" data-testid={`edit-auth-${a.id}`} onClick={() => openEdit(a)}>
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                        {/* Eliminar */}
-                        <Button variant="ghost" size="icon" data-testid={`delete-auth-${a.id}`} onClick={() => remove(a)} className="text-red-500">
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
       {/* Área imprimible */}
       {printItem && (
-        <div
-          className="hidden print-area"
-          dangerouslySetInnerHTML={{ __html: buildAuthHTML(printItem, getPlayer(printItem.player_id), settings, lang) }}
-        />
+        <div className="hidden print-area"
+          dangerouslySetInnerHTML={{ __html: buildAuthHTML(printItem, getPlayer(printItem.player_id), settings, lang) }} />
       )}
 
-      {/* Dialog creación masiva (6 autorizaciones de una vez) */}
+      {/* Dialog creación masiva */}
       <Dialog open={bulkDialog} onOpenChange={setBulkDialog}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -354,31 +320,30 @@ const Authorizations = () => {
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <p className="text-sm text-slate-500">
-              Se crearán automáticamente las <strong>6 autorizaciones</strong> para el jugador seleccionado
+              Se crearán las <strong>6 autorizaciones</strong> para el jugador seleccionado
               (solo las que no existan todavía).
             </p>
             <SelectField label={t("name")} value={bulkForm.player_id}
-              onChange={(v) => setBulkForm((f) => ({ ...f, player_id: v }))}
-              options={playerOptions} testid="bulk-auth-player" />
+              onChange={(v) => setBulkForm((f) => ({ ...f, player_id: v }))} options={playerOptions} testid="bulk-auth-player" />
             <Field label={t("signer")} value={bulkForm.firmante}
-              onChange={(v) => setBulkForm((f) => ({ ...f, firmante: v }))}
-              testid="bulk-auth-firmante" />
-            {/* Preview de los 6 tipos */}
-            <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
-              <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Autorizaciones que se crearán</p>
-              <div className="space-y-1">
-                {Object.entries(AUTH_TYPES).map(([key, labels]) => {
-                  const yaExiste = auths.some((a) => a.player_id === bulkForm.player_id && a.tipo === key);
-                  return (
-                    <div key={key} className={`flex items-center gap-2 text-sm ${yaExiste ? "text-slate-300 line-through" : "text-slate-700"}`}>
-                      <span className={`h-2 w-2 rounded-full flex-shrink-0 ${yaExiste ? "bg-slate-200" : "bg-emerald-400"}`} />
-                      {labels[lang]}
-                      {yaExiste && <span className="text-xs text-slate-400 no-underline" style={{textDecoration:"none"}}>(ya existe)</span>}
-                    </div>
-                  );
-                })}
+              onChange={(v) => setBulkForm((f) => ({ ...f, firmante: v }))} testid="bulk-auth-firmante" />
+            {bulkForm.player_id && (
+              <div className="rounded-lg border border-slate-100 bg-slate-50 p-3">
+                <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-2">Autorizaciones</p>
+                <div className="space-y-1.5">
+                  {Object.entries(AUTH_TYPES).map(([key, labels]) => {
+                    const yaExiste = auths.some((a) => a.player_id === bulkForm.player_id && a.tipo === key);
+                    return (
+                      <div key={key} className={`flex items-center gap-2 text-sm ${yaExiste ? "text-slate-300" : "text-slate-700"}`}>
+                        <span className={`h-2 w-2 rounded-full flex-shrink-0 ${yaExiste ? "bg-slate-200" : "bg-emerald-400"}`} />
+                        <span className={yaExiste ? "line-through" : ""}>{labels[lang]}</span>
+                        {yaExiste && <span className="text-xs text-slate-300 ml-1">ya existe</span>}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBulkDialog(false)}>{t("cancel")}</Button>
@@ -387,6 +352,7 @@ const Authorizations = () => {
         </DialogContent>
       </Dialog>
 
+      {/* Dialog editar individual */}
       <Dialog open={dialog} onOpenChange={setDialog}>
         <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
           <DialogHeader>
@@ -405,9 +371,7 @@ const Authorizations = () => {
                 <Field label={t("authorizedDni")} value={form.dni_autorizada} onChange={set("dni_autorizada")} testid="auth-dni" />
               </>
             )}
-            <div className="sm:col-span-2">
-              <Area label={t("notes")} value={form.observaciones} onChange={set("observaciones")} testid="auth-obs" />
-            </div>
+            <div className="sm:col-span-2"><Area label={t("notes")} value={form.observaciones} onChange={set("observaciones")} testid="auth-obs" /></div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)}>{t("cancel")}</Button>

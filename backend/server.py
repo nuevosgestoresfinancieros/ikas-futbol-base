@@ -1,13 +1,18 @@
-from fastapi import FastAPI, APIRouter, HTTPException
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File
+from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
+import io
+import json
 import logging
+import math
 from pathlib import Path
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import uuid
+import pandas as pd
 from datetime import datetime, timezone, date
 
 
@@ -837,6 +842,11 @@ async def dashboard():
     }
 
 
+@api_router.get("/")
+async def root():
+    return {"message": "Ikas-Txiki Manager API"}
+
+
 # ================= DEMO SEED / CLEAR =================
 ALL_COLLECTIONS = ["players", "families", "teams", "matches", "callups", "payments",
                    "authorizations", "inscriptions", "trainings", "stats", "communications"]
@@ -978,9 +988,99 @@ async def seed_demo():
     return {"ok": True, "teams": len(teams), "players": len(players), "matches": len(matches)}
 
 
-@api_router.get("/")
-async def root():
-    return {"message": "Ikas-Txiki Manager API"}
+# ================= EXCEL IMPORT / EXPORT =================
+EXPORT_COLLECTIONS = ALL_COLLECTIONS + ["settings"]
+
+
+def _flatten_for_excel(doc: dict) -> dict:
+    out = {}
+    for k, v in doc.items():
+        if k == "_id":
+            continue
+        if isinstance(v, (list, dict)):
+            out[k] = json.dumps(v, ensure_ascii=False)
+        else:
+            out[k] = v
+    return out
+
+
+def _unflatten_from_excel(row: dict) -> dict:
+    out = {}
+    for k, v in row.items():
+        if v is None:
+            continue
+        if isinstance(v, float) and math.isnan(v):
+            continue
+        if isinstance(v, str):
+            s = v.strip()
+            if s == "":
+                continue
+            if (s.startswith("[") and s.endswith("]")) or (s.startswith("{") and s.endswith("}")):
+                try:
+                    out[k] = json.loads(s)
+                    continue
+                except Exception:
+                    pass
+            out[k] = v
+        else:
+            out[k] = v
+    return out
+
+
+@api_router.get("/export-excel")
+async def export_excel():
+    buffer = io.BytesIO()
+    with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
+        wrote_any = False
+        for coll in EXPORT_COLLECTIONS:
+            docs = await db[coll].find({}, {"_id": 0}).to_list(10000)
+            rows = [_flatten_for_excel(d) for d in docs]
+            df = pd.DataFrame(rows)
+            df.to_excel(writer, sheet_name=coll[:31], index=False)
+            wrote_any = True
+        if not wrote_any:
+            pd.DataFrame().to_excel(writer, sheet_name="empty", index=False)
+    buffer.seek(0)
+    fname = f"ikastxiki_backup_{date.today().isoformat()}.xlsx"
+    return StreamingResponse(
+        buffer,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
+@api_router.post("/import-excel")
+async def import_excel(file: UploadFile = File(...)):
+    content = await file.read()
+    try:
+        sheets = pd.read_excel(io.BytesIO(content), sheet_name=None)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"No se pudo leer el archivo Excel: {e}")
+
+    summary = {}
+    for coll, df in sheets.items():
+        if coll not in EXPORT_COLLECTIONS:
+            continue
+        records = df.to_dict(orient="records")
+        cleaned = [_unflatten_from_excel(r) for r in records]
+        cleaned = [c for c in cleaned if c]
+        if coll == "settings":
+            for c in cleaned:
+                c["id"] = SETTINGS_ID
+                await db.settings.update_one({"id": SETTINGS_ID}, {"$set": c}, upsert=True)
+            summary[coll] = len(cleaned)
+            continue
+        await db[coll].delete_many({})
+        for c in cleaned:
+            if not c.get("id"):
+                c["id"] = new_id()
+            c.setdefault("created_at", now_iso())
+            c["updated_at"] = now_iso()
+        if cleaned:
+            await db[coll].insert_many(cleaned)
+        summary[coll] = len(cleaned)
+    return {"ok": True, "imported": summary}
+
 
 app.include_router(api_router)
 

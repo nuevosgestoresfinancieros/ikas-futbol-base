@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { Settings as SettingsIcon, Plus, X, Save, Camera } from "lucide-react";
+import React, { useEffect, useState, useRef } from "react";
+import { Settings as SettingsIcon, Plus, X, Save, Camera, Download, Upload, Database, Trash2, Sparkles } from "lucide-react";
 import { toast } from "sonner";
-import api from "@/api";
+import api, { API } from "@/api";
 import { useI18n } from "@/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +50,57 @@ const Settings = () => {
     const { categories, id, created_at, updated_at, ...payload } = s;
     await api.put("/settings", payload);
     toast.success(t("saved"));
+  };
+
+  const fileRef = useRef();
+  const [busy, setBusy] = useState(false);
+
+  const reloadSettings = () => api.get("/settings").then((r) => setS(r.data));
+
+  const exportDB = async () => {
+    setBusy(true);
+    try {
+      const res = await api.get("/export-excel", { responseType: "blob" });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ikastxiki_backup_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) { toast.error("Error al exportar"); }
+    setBusy(false);
+  };
+
+  const importDB = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!window.confirm(t("importWarning"))) return;
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await api.post("/import-excel", fd, { headers: { "Content-Type": "multipart/form-data" } });
+      toast.success(t("importDone"));
+      await reloadSettings();
+    } catch (e) { toast.error(e.response?.data?.detail || "Error al importar"); }
+    setBusy(false);
+  };
+
+  const loadDemo = async () => {
+    if (!window.confirm(t("demoWarning"))) return;
+    setBusy(true);
+    try { await api.post("/seed-demo"); toast.success(t("saved")); await reloadSettings(); }
+    catch (e) { toast.error("Error"); }
+    setBusy(false);
+  };
+
+  const clearAll = async () => {
+    if (!window.confirm(t("clearWarning"))) return;
+    setBusy(true);
+    try { await api.post("/clear-all"); toast.success(t("deleted")); await reloadSettings(); }
+    catch (e) { toast.error("Error"); }
+    setBusy(false);
   };
 
   if (!s) return <div className="text-slate-400">…</div>;
@@ -104,6 +155,39 @@ const Settings = () => {
                 <p className="text-xs text-slate-500">{c.min_age}–{c.max_age} años</p>
               </div>
             ))}
+          </div>
+        </div>
+
+        {/* Data management */}
+        <div className="rounded-xl border border-slate-200 bg-white p-6 lg:col-span-2" data-testid="data-management">
+          <div className="flex items-center gap-2 mb-4">
+            <Database className="h-5 w-5 text-primary" />
+            <h2 className="font-heading text-lg font-bold text-slate-900">{t("dataManagement")}</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="rounded-lg border border-slate-200 p-4">
+              <p className="font-semibold text-slate-800 flex items-center gap-2"><Download className="h-4 w-4 text-primary" />{t("exportDB")}</p>
+              <p className="text-xs text-slate-500 mt-1 mb-3">{t("exportDBDesc")}</p>
+              <Button data-testid="export-db-btn" onClick={exportDB} disabled={busy} className="h-11 w-full">
+                <Download className="h-4 w-4" />{busy ? t("exporting") : t("exportDB")}
+              </Button>
+            </div>
+            <div className="rounded-lg border border-slate-200 p-4">
+              <p className="font-semibold text-slate-800 flex items-center gap-2"><Upload className="h-4 w-4 text-primary" />{t("importDB")}</p>
+              <p className="text-xs text-slate-500 mt-1 mb-3">{t("importDBDesc")}</p>
+              <input ref={fileRef} type="file" accept=".xlsx,.xls" className="hidden" data-testid="import-db-input" onChange={importDB} />
+              <Button data-testid="import-db-btn" variant="secondary" onClick={() => fileRef.current?.click()} disabled={busy} className="h-11 w-full">
+                <Upload className="h-4 w-4" />{busy ? t("importing") : t("importDB")}
+              </Button>
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 mt-4 pt-4 border-t border-slate-100">
+            <Button data-testid="load-demo-btn" variant="outline" onClick={loadDemo} disabled={busy} className="h-11">
+              <Sparkles className="h-4 w-4" />{t("loadDemo")}
+            </Button>
+            <Button data-testid="clear-all-btn" variant="outline" onClick={clearAll} disabled={busy} className="h-11 text-red-600 hover:text-red-700 hover:bg-red-50">
+              <Trash2 className="h-4 w-4" />{t("clearAll")}
+            </Button>
           </div>
         </div>
       </div>

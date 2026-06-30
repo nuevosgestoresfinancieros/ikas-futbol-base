@@ -25,3 +25,7 @@ App web profesional para gestionar una escuela de fútbol base juvenil (Ikas-Txi
 
 ## Próximas acciones
 - Confirmar con usuario qué módulo de la fase 2 priorizar (Inscripciones / Entrenamientos / Estadísticas).
+
+## Fase 3 (29 jun 2026)
+- **Datos de ejemplo**: botón "Cargar datos de ejemplo" en Configuración (POST /api/seed-demo) crea 3 equipos, 8 jugadores, partidos, entrenamientos, convocatoria, pagos, autorizaciones, inscripciones, estadísticas y un aviso. Botón "Vaciar todo" (POST /api/clear-all).
+- **Importar/Exportar base de datos en Excel**: GET /api/export-excel (xlsx con una hoja por módulo + settings), POST /api/import-excel (reemplaza datos desde xlsx). Campos lista/dict se serializan a JSON en celdas. Round-trip verificado. Botones en Configuración → "Datos y base de datos". Requiere openpyxl (en requirements.txt).

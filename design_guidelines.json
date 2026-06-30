@@ -1,87 +1,103 @@
 {
-  "theme": "Light",
-  "archetype": "6 (Vibrant Play) combined with 2 (Performance Pro)",
-  "design_rationale": "Ikas-Txiki is a grassroots youth football school. The design needs to be highly operational for managers but retain a vibrant, youthful, and sporty identity. We blend Archetype 6 (Vibrant Play - sky blue, grass green) for approachable interaction with Archetype 2 (Performance Pro - deep athletic navy, sharp contrasts) to ensure professional data legibility and command-center efficiency.",
-  "colors": {
-    "background": "#F8FAFC",
-    "surface": "#FFFFFF",
-    "sidebar_background": "#111827",
-    "sidebar_text": "#F3F4F6",
-    "primary": "#0EA5E9",
-    "primary_hover": "#0284C7",
-    "primary_foreground": "#FFFFFF",
-    "secondary": "#FACC15",
-    "secondary_foreground": "#111827",
-    "accent": "#22C55E",
-    "accent_foreground": "#FFFFFF",
-    "destructive": "#EF4444",
-    "destructive_foreground": "#FFFFFF",
-    "text_main": "#111827",
-    "text_muted": "#6B7280",
-    "border": "#E5E7EB",
-    "ring": "#0EA5E9"
+  "theme": "Vibrant Youth Sports Manager",
+  "archetype": "Archetype 6 (Vibrant Play) + Archetype 2 (Performance Pro)",
+  "global_rules": {
+    "background": "DO NOT use pure white backgrounds. Use a soft tinted gradient like `bg-gradient-to-br from-blue-50 via-indigo-50 to-emerald-50` for the main app background.",
+    "surfaces": "Cards and content areas should use glassmorphism (`bg-white/70 backdrop-blur-xl`) or tinted solid backgrounds (`bg-blue-50/80`) to let the colorful background shine through.",
+    "interactions": "Heavy use of micro-interactions: hover lifts (`hover:-translate-y-1`), vibrant glowing shadows (`hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)]`), and bouncy tap scales.",
+    "typography": "Use playful but highly legible sans-serif. Headings: Outfit (tracking-tight), Body: Manrope."
+  },
+  "color_palette": {
+    "primary": {
+      "hex": "#00B4D8",
+      "tailwind": "cyan-500",
+      "usage": "Primary buttons, active states, main brand accent"
+    },
+    "secondary": {
+      "hex": "#38B000",
+      "tailwind": "emerald-500",
+      "usage": "Success states, 'active' player badges, 'paid' status"
+    },
+    "accent_warm": {
+      "hex": "#FF5400",
+      "tailwind": "orange-500",
+      "usage": "Alerts, upcoming match highlights, pending payments"
+    },
+    "sidebar": {
+      "hex": "#0F172A",
+      "tailwind": "slate-900",
+      "usage": "Sidebar background. Use vibrant colored text/borders for active items."
+    },
+    "app_background": {
+      "tailwind": "bg-gradient-to-br from-blue-50 via-indigo-50 to-emerald-50"
+    }
+  },
+  "module_colors": {
+    "players": "bg-gradient-to-br from-blue-400 to-indigo-500",
+    "teams": "bg-gradient-to-br from-orange-400 to-rose-500",
+    "matches": "bg-gradient-to-br from-emerald-400 to-teal-500",
+    "payments": "bg-gradient-to-br from-purple-400 to-fuchsia-500",
+    "alerts": "bg-gradient-to-br from-rose-400 to-red-500"
   },
   "typography": {
-    "font_families": {
-      "headings": "'Outfit', sans-serif",
-      "body": "'Manrope', sans-serif"
+    "headings": {
+      "family": "Outfit",
+      "classes": "font-bold tracking-tight text-slate-900"
     },
-    "font_weights": {
-      "headings": "600, 700",
-      "body": "400, 500",
-      "labels": "700"
-    },
-    "hierarchy": {
-      "h1": "text-4xl tracking-tight font-bold text-slate-900",
-      "h2": "text-2xl tracking-tight font-bold text-slate-900",
-      "h3": "text-xl tracking-tight font-semibold text-slate-800",
-      "body": "text-base leading-relaxed text-slate-700",
-      "small": "text-sm text-slate-500",
-      "overline": "text-xs font-bold uppercase tracking-[0.2em] text-slate-500"
+    "body": {
+      "family": "Manrope",
+      "classes": "text-slate-700 leading-relaxed"
     }
-  },
-  "layout": {
-    "spacing_scale": "Generous spacing. Use p-6, p-8 for module containers. p-4 for internal card padding.",
-    "border_radius": "Rounded-md (6px) or rounded-lg (8px) maximum for a structured, professional feel.",
-    "sidebar": "Fixed left sidebar, dark navy background (#111827). White icons and text (opacity-80 default, opacity-100 hover). Highlight active state with a left border or sky blue background tint.",
-    "dashboard_grid": "Control Room Grid. Base grid-cols-1 md:grid-cols-3 lg:grid-cols-4 with gap-6. Summary cards span 1 col, main charts span 2 cols.",
-    "forms": "Multi-step or tabbed sections (Personal, Health, Family) to avoid long scrolls. Large tap targets for inputs (min-h-[44px])."
   },
   "components": {
-    "buttons": "Big, clear buttons. Primary buttons use sky blue (#0EA5E9) with hover state darkening (#0284C7). Add subtle shadow-sm. Use rounded-md.",
-    "cards": "Subtle Neumorphism or Flat Solid. Background white, 1px subtle border (#E5E7EB), no shadow by default. On hover, slight lift (-translate-y-1) and shadow-md.",
-    "inputs": "Shadcn defaults customized with 44px height for better touch/click targets. Focus ring must be sky blue (ring-sky-500).",
-    "tables": "Dense rows, left-aligned text, clear sticky headers. Status badges for players (Active, Pending, Injured) using soft backgrounds and bold text (e.g., bg-green-100 text-green-800).",
-    "tabs": "Override default height to h-auto. Add generous padding for touch targets. Active tab marked with bottom border or solid sky blue background."
-  },
-  "interaction_and_motion": {
-    "hover_states": "All interactive elements must visibly change. Buttons darken, cards lift slightly.",
-    "transitions": "transition-all duration-200 ease-in-out for buttons and cards.",
-    "accessibility": "Ensure all interactive elements have data-testid attributes."
-  },
-  "media_and_icons": {
-    "icon_library": "lucide-react",
-    "images": {
-      "login_background": {
-        "url": "https://images.pexels.com/photos/26283685/pexels-photo-26283685.jpeg",
-        "description": "Young kids playing soccer on a green field. Use with a dark overlay (bg-black/50) for the login page."
-      },
-      "dashboard_banner": {
-        "url": "https://images.pexels.com/photos/33210166/pexels-photo-33210166.jpeg",
-        "description": "Top-down view of a soccer field. Use as an accent header image for the dashboard or empty states."
-      },
-      "team_placeholder": {
-        "url": "https://images.unsplash.com/photo-1526232761682-d26e03ac148e",
-        "description": "Children playing soccer. Can be cropped for a team photo placeholder."
-      }
+    "buttons": {
+      "primary": "px-6 py-3 bg-cyan-500 hover:bg-cyan-600 text-white shadow-lg shadow-cyan-500/30 transition-all duration-300 hover:-translate-y-1 rounded-xl font-bold text-lg",
+      "secondary": "px-6 py-3 bg-white/80 hover:bg-white text-slate-800 border border-slate-200 shadow-sm transition-all duration-300 hover:-translate-y-1 rounded-xl font-bold text-lg"
+    },
+    "cards": {
+      "summary_stat": "rounded-3xl p-6 text-white shadow-xl transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl relative overflow-hidden",
+      "data_container": "bg-white/60 backdrop-blur-xl border border-white/60 shadow-[0_8px_30px_rgb(0,0,0,0.04)] rounded-3xl p-6 transition-all"
+    },
+    "badges": {
+      "active": "bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-wider",
+      "pending": "bg-orange-100 text-orange-800 border border-orange-300 rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-wider",
+      "injured": "bg-rose-100 text-rose-800 border border-rose-300 rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-wider"
+    },
+    "tables": {
+      "container": "overflow-hidden rounded-2xl border border-white/50 bg-white/40 backdrop-blur-md shadow-sm",
+      "row": "hover:bg-white/80 transition-colors border-b border-indigo-100/50 cursor-pointer"
+    },
+    "forms": {
+      "input": "bg-white/80 border-slate-200 focus:border-cyan-400 focus:ring-cyan-400/20 rounded-xl transition-all py-3 px-4",
+      "tabs": "flex space-x-2 bg-indigo-50/50 p-1.5 rounded-2xl w-fit"
     }
   },
+  "motion": {
+    "page_load": "Staggered fade-in and slide-up (using Framer Motion `initial={{ opacity: 0, y: 20 }}`)",
+    "counters": "Use animated number counters for dashboard stats to make it feel alive",
+    "hover_effects": "Cards and rows MUST gently lift or light up to feel highly interactive"
+  },
+  "media": {
+    "image_urls": [
+      {
+        "url": "https://images.pexels.com/photos/7307392/pexels-photo-7307392.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "auth_background",
+        "description": "Youth football practice, perfect for a vibrant login screen overlay"
+      },
+      {
+        "url": "https://images.pexels.com/photos/33072534/pexels-photo-33072534.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "category": "empty_state",
+        "description": "Young boy training, useful for empty states in the Players or Trainings modules"
+      }
+    ]
+  },
   "instructions_to_main_agent": [
-    "Ensure the sidebar uses a dark theme for contrast against the light content area.",
-    "All summary cards in the dashboard should use a 1px border and a subtle hover effect. Avoid deep drop shadows to keep the UI clean.",
-    "Player profiles must be tabbed (Personal, Health, Family, etc.) rather than a single long page.",
-    "Apply `data-testid` to all forms, buttons, and navigation links. Example: data-testid='sidebar-nav-players'.",
-    "Use 'Outfit' for headers and 'Manrope' for standard text. Import via Google Fonts.",
-    "Use Lucide icons for all module navigation."
+    "Ensure all interactive elements have 'data-testid' attributes.",
+    "File format constraint: You are generating .js files (with React + Tailwind), NOT .tsx.",
+    "Do NOT use pure white (bg-white) for the main app background. Implement the defined soft gradient to make it colorful.",
+    "Apply the `module_colors` to the respective dashboard summary cards (e.g., the Players card should use the blue-to-indigo gradient).",
+    "Use Framer Motion or Tailwind transitions to make buttons and cards feel bouncy and alive (scale on click, lift on hover).",
+    "Keep Shadcn components but heavily override their default styling to match these vibrant, rounded-xl, glassy guidelines. Do not let it look like a default corporate Vercel dashboard.",
+    "Include a prominent language toggle (ES/EU) that fits the sporty aesthetic."
   ]
 }

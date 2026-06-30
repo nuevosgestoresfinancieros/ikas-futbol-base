@@ -837,10 +837,150 @@ async def dashboard():
     }
 
 
+# ================= DEMO SEED / CLEAR =================
+ALL_COLLECTIONS = ["players", "families", "teams", "matches", "callups", "payments",
+                   "authorizations", "inscriptions", "trainings", "stats", "communications"]
+
+
+@api_router.post("/clear-all")
+async def clear_all():
+    for c in ALL_COLLECTIONS:
+        await db[c].delete_many({})
+    return {"ok": True}
+
+
+@api_router.post("/seed-demo")
+async def seed_demo():
+    # wipe first to keep idempotent
+    for c in ALL_COLLECTIONS:
+        await db[c].delete_many({})
+
+    from datetime import timedelta
+    today = date.today()
+
+    # Settings
+    await db.settings.update_one({"id": SETTINGS_ID}, {"$set": {
+        "id": SETTINGS_ID, "club_nombre": "Ikas-Txiki Futbol Eskola",
+        "club_direccion": "Kiroldegia, Donostia", "club_email": "info@ikastxiki.eus",
+        "club_telefono": "943 000 000", "temporada_actual": "2025-2026",
+        "temporadas": ["2024-2025", "2025-2026"], "campos": ["Campo Municipal", "Anoeta B", "Pista cubierta"],
+        "entrenadores": ["Mikel Agirre", "Jon Etxeberria", "Ane Garmendia"],
+        "cuota_base": 180, "descuento_hermano": 30,
+    }}, upsert=True)
+
+    # Teams
+    teams_def = [
+        {"nombre": "Benjamín A", "categoria": "Benjamín", "entrenador": "Mikel Agirre", "horario": "L-X 17:30", "campo": "Campo Municipal"},
+        {"nombre": "Alevín A", "categoria": "Alevín", "entrenador": "Jon Etxeberria", "horario": "M-J 18:00", "campo": "Anoeta B"},
+        {"nombre": "Infantil A", "categoria": "Infantil", "entrenador": "Ane Garmendia", "horario": "M-J 19:00", "campo": "Campo Municipal"},
+    ]
+    teams = []
+    for td in teams_def:
+        t = await insert_doc("teams", Team(temporada="2025-2026", estado="activo", **td).model_dump())
+        teams.append(t)
+
+    # Families + Players
+    players_def = [
+        ("Unai", "Goikoetxea", "2016-03-12", 0, "Delantero", "9", "activo", "600111001", "unai.fam@mail.eus", "Calle Mayor 1"),
+        ("Ane", "Lizarraga", "2016-07-05", 0, "Centrocampista", "8", "activo", "600111002", "ane.fam@mail.eus", "Av. Libertad 3"),
+        ("Iker", "Mendizabal", "2015-11-20", 0, "Portero", "1", "lesionado", "600111003", "iker.fam@mail.eus", "Calle Río 5"),
+        ("Maddi", "Sarriegi", "2014-02-18", 1, "Defensa", "4", "activo", "600111004", "maddi.fam@mail.eus", "Plaza Nueva 7"),
+        ("Julen", "Aranburu", "2014-09-30", 1, "Delantero", "11", "activo", "600111005", "julen.fam@mail.eus", "Calle Sol 9"),
+        ("Nora", "Etxeberria", "2013-05-14", 2, "Centrocampista", "10", "activo", "600111006", "nora.fam@mail.eus", "Av. Mar 2"),
+        ("Aitor", "Goikoetxea", "2013-12-01", 2, "Defensa", "3", "pendiente_documentacion", "600111001", "unai.fam@mail.eus", "Calle Mayor 1"),
+        ("Leire", "Otaegi", "2015-08-22", 0, "Delantera", "7", "en_prueba", "600111008", "leire.fam@mail.eus", "Calle Norte 4"),
+    ]
+    players = []
+    for (nombre, ape, fnac, tidx, pos, dorsal, estado, tel, email, dom) in players_def:
+        pdata = Player(
+            nombre=nombre, apellidos=ape, fecha_nacimiento=fnac, equipo_id=teams[tidx]["id"],
+            posicion=pos, dorsal=dorsal, estado=estado, progenitor1_telefono=tel,
+            progenitor1_email=email, progenitor1_nombre=f"Familia {ape}", domicilio=dom,
+            estado_documental="completo" if estado == "activo" else "pendiente",
+            fecha_alta=str(today - timedelta(days=120)),
+        ).model_dump()
+        pdata["categoria"] = compute_category(fnac)
+        p = await insert_doc("players", pdata)
+        players.append(p)
+
+    # Families
+    for ape, tel, email, dom in [("Goikoetxea", "600111001", "unai.fam@mail.eus", "Calle Mayor 1"),
+                                  ("Etxeberria", "600111006", "nora.fam@mail.eus", "Av. Mar 2")]:
+        await insert_doc("families", Family(progenitor1_nombre=f"Familia {ape}", progenitor1_telefono=tel,
+                                             progenitor1_email=email, domicilio=dom, contacto_principal=f"Familia {ape}",
+                                             preferencia_comunicacion="whatsapp").model_dump())
+
+    # Matches
+    matches_def = [
+        (teams[0]["id"], "C.D. Antiguoko", str(today + timedelta(days=3)), "10:00", "local", "liga", "programado", None, None, "1"),
+        (teams[1]["id"], "Easo S.D.", str(today + timedelta(days=5)), "11:30", "visitante", "liga", "programado", None, None, "2"),
+        (teams[2]["id"], "Real Sociedad B", str(today - timedelta(days=4)), "12:00", "local", "liga", "jugado", 3, 1, "1"),
+    ]
+    matches = []
+    for (eid, rival, fecha, hora, cond, tipo, estado, rp, rr, jor) in matches_def:
+        m = await insert_doc("matches", Match(equipo_id=eid, rival=rival, fecha=fecha, hora=hora, condicion=cond,
+                                               tipo=tipo, estado=estado, resultado_propio=rp, resultado_rival=rr,
+                                               jornada=jor, temporada="2025-2026", campo="Campo Municipal").model_dump())
+        matches.append(m)
+
+    # Trainings
+    t0_players = [p for p in players if p["equipo_id"] == teams[0]["id"]]
+    await insert_doc("trainings", Training(
+        equipo_id=teams[0]["id"], campo="Campo Municipal", fecha=str(today + timedelta(days=1)), hora="17:30",
+        asistencia=[{"player_id": p["id"], "estado": "presente"} for p in t0_players],
+        ejercicios="Rondos + tiro a puerta").model_dump())
+    t1_players = [p for p in players if p["equipo_id"] == teams[1]["id"]]
+    await insert_doc("trainings", Training(
+        equipo_id=teams[1]["id"], campo="Anoeta B", fecha=str(today - timedelta(days=2)), hora="18:00",
+        asistencia=[{"player_id": p["id"], "estado": "presente" if i % 2 == 0 else "justificada"} for i, p in enumerate(t1_players)],
+        ejercicios="Pase y control").model_dump())
+
+    # Callup for first match
+    await insert_doc("callups", Callup(
+        match_id=matches[0]["id"], equipo_id=teams[0]["id"],
+        convocados=[{"player_id": p["id"], "estado": "confirmado"} for p in t0_players],
+        hora_quedada="09:15", lugar_quedada="Vestuarios Campo Municipal",
+        material="Botas + agua", mensaje_familias="Convocatoria para el partido del fin de semana.").model_dump())
+
+    # Payments
+    for i, p in enumerate(players[:5]):
+        estado = ["pagado", "pendiente", "pagado", "parcial", "pendiente"][i]
+        await insert_doc("payments", Payment(player_id=p["id"], concepto="Cuota temporada", importe_base=180,
+                                              descuento_hermano=30 if i in (3, 4) else 0, estado=estado,
+                                              forma_pago="domiciliacion").model_dump())
+
+    # Authorizations
+    for i, p in enumerate(players[:4]):
+        await insert_doc("authorizations", Authorization(player_id=p["id"], tipo=["general", "imagen", "medica", "desplazamientos"][i],
+                                                          firmante=f"Familia {p['apellidos']}", estado="firmada" if i < 2 else "pendiente",
+                                                          fecha_firma=str(today - timedelta(days=30)) if i < 2 else None).model_dump())
+
+    # Inscriptions (pending)
+    for nombre, ape, fnac, tel in [("Oihan", "Beristain", "2017-04-10", "600222001"),
+                                    ("Irati", "Zubizarreta", "2016-10-02", "600222002")]:
+        idata = Inscription(nombre=nombre, apellidos=ape, fecha_nacimiento=fnac, progenitor1_telefono=tel,
+                            progenitor1_nombre=f"Familia {ape}", estado="recibida", tipo="alta").model_dump()
+        idata["categoria"] = compute_category(fnac)
+        await insert_doc("inscriptions", idata)
+
+    # Stats
+    for p in [players[5], players[0]]:
+        await insert_doc("stats", PlayerStats(player_id=p["id"], temporada="2025-2026", partidos_convocado=8,
+                                               partidos_jugados=7, minutos=420, goles=5, asistencias=3,
+                                               amarillas=1, valoracion=8, posicion=p["posicion"]).model_dump())
+
+    # Communications
+    await insert_doc("communications", Communication(destinatario_tipo="equipo", destinatario_id=teams[0]["id"],
+                                                      destinatario_nombre=teams[0]["nombre"], canal="whatsapp",
+                                                      asunto="Entrenamiento del lunes", mensaje="Recordad traer botas de tacos.",
+                                                      enviado=True, fecha_envio=now_iso()).model_dump())
+
+    return {"ok": True, "teams": len(teams), "players": len(players), "matches": len(matches)}
+
+
 @api_router.get("/")
 async def root():
     return {"message": "Ikas-Txiki Manager API"}
-
 
 app.include_router(api_router)
 

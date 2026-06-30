@@ -7,12 +7,54 @@
         <meta name="description" content="Ikas-Txiki Manager - Gestión de escuela de fútbol base" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet" />
+        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet" />
         <title>Ikas-Txiki Manager</title>
         <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
     </head>
     <body>
         <noscript>You need to enable JavaScript to run this app.</noscript>
         <div id="root"></div>
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+        <a
+            id="cibermedida-badge"
+            target="_blank"
+            href="https://docencia.cibermedida.es"
+            style="
+                display: inline-flex !important;
+                box-sizing: border-box;
+                align-items: center !important;
+                gap: 8px;
+                padding: 7px 14px 7px 8px;
+                border-radius: 50px !important;
+                background: linear-gradient(135deg, #7B2FF7 0%, #00C9B1 100%) !important;
+                position: fixed !important;
+                bottom: 16px;
+                right: 16px;
+                text-decoration: none;
+                z-index: 9999 !important;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+            "
+        >
+            <img
+                src="/logo_cibermedida.png"
+                alt="Cibermedida"
+                style="
+                    width: 24px;
+                    height: 24px;
+                    border-radius: 50%;
+                    object-fit: cover;
+                    background: white;
+                    flex-shrink: 0;
+                "
+            />
+            <span style="
+                color: #fff !important;
+                font-family: 'Inter', sans-serif !important;
+                font-size: 12px !important;
+                font-weight: 600 !important;
+                line-height: 1 !important;
+                white-space: nowrap !important;
+            ">Hecho por Cibermedida</span>
+        </a>
     </body>
 </html>

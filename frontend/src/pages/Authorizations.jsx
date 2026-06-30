@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
-import { FileSignature, Plus, Pencil, Trash2, Printer } from "lucide-react";
+import { FileSignature, Plus, Pencil, Trash2, Printer, Download } from "lucide-react";
 import { toast } from "sonner";
 import api from "@/api";
 import { useI18n } from "@/i18n";
@@ -10,21 +10,151 @@ import { PageHeader, StatusBadge, EmptyState } from "@/components/shared";
 import { Field, Area, SelectField } from "@/components/form";
 
 const AUTH_TYPES = {
-  general: { es: "Autorización general de participación", eu: "Parte hartzeko baimen orokorra" },
-  imagen: { es: "Autorización de uso de imagen", eu: "Irudia erabiltzeko baimena" },
-  medica: { es: "Autorización médica básica", eu: "Oinarrizko mediku-baimena" },
-  desplazamientos: { es: "Autorización de desplazamientos", eu: "Lekualdaketa baimena" },
-  recogida: { es: "Autorización para recogida por terceros", eu: "Hirugarrenek jasotzeko baimena" },
-  proteccion_datos: { es: "Protección de datos", eu: "Datuen babesa" },
+  general:          { es: "Autorización general de participación",  eu: "Parte hartzeko baimen orokorra" },
+  imagen:           { es: "Autorización de uso de imagen",          eu: "Irudia erabiltzeko baimena" },
+  medica:           { es: "Autorización médica básica",             eu: "Oinarrizko mediku-baimena" },
+  desplazamientos:  { es: "Autorización de desplazamientos",        eu: "Lekualdaketa baimena" },
+  recogida:         { es: "Autorización para recogida por terceros",eu: "Hirugarrenek jasotzeko baimena" },
+  proteccion_datos: { es: "Protección de datos",                    eu: "Datuen babesa" },
 };
 
 const TEMPLATE_TEXT = {
-  general: "Autorizo a mi hijo/a a participar en todas las actividades deportivas, entrenamientos y partidos organizados por el club durante la temporada.",
-  imagen: "Autorizo el uso de la imagen de mi hijo/a en fotografías y vídeos del club con fines informativos y de difusión de las actividades deportivas.",
-  medica: "Autorizo al club a tomar las medidas oportunas en caso de urgencia médica y declaro estar informado/a del estado de salud de mi hijo/a.",
-  desplazamientos: "Autorizo los desplazamientos de mi hijo/a a los distintos campos donde se disputen los partidos y actividades del club.",
-  recogida: "Autorizo a la persona indicada a recoger a mi hijo/a tras los entrenamientos y partidos del club.",
-  proteccion_datos: "Doy mi consentimiento para el tratamiento de los datos personales conforme a la normativa de protección de datos vigente.",
+  general:
+    "Autorizo a mi hijo/a a participar en todas las actividades deportivas, entrenamientos y " +
+    "partidos organizados por el club durante la temporada, así como a recibir la atención " +
+    "necesaria en caso de accidente leve.",
+  imagen:
+    "Autorizo el uso de la imagen de mi hijo/a en fotografías y vídeos del club con fines " +
+    "informativos y de difusión de las actividades deportivas, sin contraprestación económica " +
+    "y respetando en todo momento la dignidad del menor.",
+  medica:
+    "Autorizo al club a tomar las medidas oportunas en caso de urgencia médica cuando no sea " +
+    "posible contactar con el/los tutor/es. Declaro estar informado/a del estado de salud de " +
+    "mi hijo/a y no tener conocimiento de impedimento médico para la práctica deportiva.",
+  desplazamientos:
+    "Autorizo los desplazamientos de mi hijo/a en los vehículos del club o de otros " +
+    "progenitores/tutores a los distintos campos y localizaciones donde se disputen los " +
+    "partidos y actividades organizadas por el club.",
+  recogida:
+    "Autorizo a la persona indicada a continuación a recoger a mi hijo/a tras los " +
+    "entrenamientos y partidos del club, en los casos en que yo no pueda hacerlo " +
+    "personalmente.",
+  proteccion_datos:
+    "Doy mi consentimiento informado para el tratamiento de los datos personales de mi " +
+    "hijo/a conforme al Reglamento (UE) 2016/679 (RGPD) y la Ley Orgánica 3/2018 (LOPDGDD). " +
+    "Los datos serán utilizados exclusivamente para la gestión de las actividades del club y " +
+    "no serán cedidos a terceros sin consentimiento expreso.",
+};
+
+// Genera el HTML del documento de autorización
+const buildAuthHTML = (auth, player, settings, lang) => {
+  const clubNombre = settings.club_nombre || "Ikas-Txiki";
+  const clubDireccion = settings.club_direccion || "";
+  const clubEmail = settings.club_email || "";
+  const clubTelefono = settings.club_telefono || "";
+  const clubLogo = settings.club_logo || "";
+  const tipoLabel = AUTH_TYPES[auth.tipo]?.[lang] || auth.tipo;
+  const texto = TEMPLATE_TEXT[auth.tipo] || "";
+  const jugadorNombre = player ? `${player.nombre} ${player.apellidos || ""}`.trim() : "________________";
+  const firmante = auth.firmante || "________________";
+  const fecha = auth.fecha_firma || "____________";
+  const temporada = "2025 – 2026";
+
+  return `
+    <div style="font-family: Georgia, serif; color: #1a1a1a; max-width: 680px; margin: 0 auto; padding: 40px 48px; box-sizing: border-box;">
+
+      <!-- Cabecera -->
+      <div style="display:flex; align-items:center; gap:20px; border-bottom:3px solid #1a1a1a; padding-bottom:16px; margin-bottom:28px;">
+        ${clubLogo ? `<img src="${clubLogo}" alt="" style="height:72px; width:72px; object-fit:contain;" />` : ""}
+        <div>
+          <div style="font-size:22px; font-weight:700; letter-spacing:0.5px;">${clubNombre}</div>
+          ${clubDireccion ? `<div style="font-size:12px; color:#444; margin-top:2px;">${clubDireccion}</div>` : ""}
+          ${clubEmail || clubTelefono ? `<div style="font-size:12px; color:#444;">${[clubEmail, clubTelefono].filter(Boolean).join(" · ")}</div>` : ""}
+        </div>
+      </div>
+
+      <!-- Título -->
+      <div style="text-align:center; margin-bottom:32px;">
+        <div style="font-size:17px; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; border-bottom:1px solid #ccc; padding-bottom:8px; display:inline-block;">
+          ${tipoLabel}
+        </div>
+        <div style="font-size:12px; color:#666; margin-top:6px;">Temporada ${temporada}</div>
+      </div>
+
+      <!-- Datos -->
+      <table style="width:100%; border-collapse:collapse; margin-bottom:24px; font-size:13px;">
+        <tr>
+          <td style="padding:6px 0; color:#555; width:40%;">Padre/Madre/Tutor/a:</td>
+          <td style="padding:6px 0; font-weight:600; border-bottom:1px solid #999;">${firmante}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px 0; color:#555;">Jugador/a:</td>
+          <td style="padding:6px 0; font-weight:600; border-bottom:1px solid #999;">${jugadorNombre}</td>
+        </tr>
+        ${player?.fecha_nacimiento ? `
+        <tr>
+          <td style="padding:6px 0; color:#555;">Fecha de nacimiento:</td>
+          <td style="padding:6px 0; border-bottom:1px solid #999;">${player.fecha_nacimiento.slice(0,10)}</td>
+        </tr>` : ""}
+        ${player?.categoria ? `
+        <tr>
+          <td style="padding:6px 0; color:#555;">Categoría:</td>
+          <td style="padding:6px 0; border-bottom:1px solid #999;">${player.categoria}</td>
+        </tr>` : ""}
+      </table>
+
+      <!-- Texto de autorización -->
+      <div style="background:#f8f8f8; border-left:4px solid #333; padding:16px 20px; margin-bottom:24px; font-size:14px; line-height:1.8;">
+        <strong>AUTORIZO / BAIMENA EMATEN DUT:</strong><br/>
+        ${texto}
+      </div>
+
+      ${auth.tipo === "recogida" ? `
+      <div style="margin-bottom:24px; font-size:13px;">
+        <strong>Persona autorizada para la recogida:</strong>
+        <table style="width:100%; border-collapse:collapse; margin-top:8px;">
+          <tr>
+            <td style="padding:6px 0; color:#555; width:40%;">Nombre y apellidos:</td>
+            <td style="padding:6px 0; border-bottom:1px solid #999; font-weight:600;">${auth.persona_autorizada || "________________"}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0; color:#555;">DNI / NIF:</td>
+            <td style="padding:6px 0; border-bottom:1px solid #999; font-weight:600;">${auth.dni_autorizada || "________________"}</td>
+          </tr>
+        </table>
+      </div>` : ""}
+
+      ${auth.observaciones ? `
+      <div style="margin-bottom:24px; font-size:13px; font-style:italic; color:#555;">
+        <strong>Observaciones:</strong> ${auth.observaciones}
+      </div>` : ""}
+
+      <!-- Firma -->
+      <div style="margin-top:56px; display:flex; justify-content:space-between; gap:40px;">
+        <div style="flex:1; text-align:center;">
+          <div style="border-top:1.5px solid #1a1a1a; padding-top:8px; font-size:12px; color:#555;">
+            Firma del padre/madre/tutor/a
+          </div>
+        </div>
+        <div style="flex:1; text-align:center;">
+          <div style="border-top:1.5px solid #1a1a1a; padding-top:8px; font-size:12px; color:#555;">
+            Fecha: ${fecha}
+          </div>
+        </div>
+        <div style="flex:1; text-align:center;">
+          <div style="border-top:1.5px solid #1a1a1a; padding-top:8px; font-size:12px; color:#555;">
+            Sello del club
+          </div>
+        </div>
+      </div>
+
+      <!-- Pie -->
+      <div style="margin-top:40px; border-top:1px solid #ddd; padding-top:10px; font-size:10px; color:#999; text-align:center;">
+        ${clubNombre} · Documento generado el ${new Date().toLocaleDateString("es-ES")} · 
+        Protección de datos: conforme al RGPD (UE) 2016/679
+      </div>
+    </div>
+  `;
 };
 
 const Authorizations = () => {
@@ -55,23 +185,75 @@ const Authorizations = () => {
     else await api.post("/authorizations", form);
     toast.success(t("saved")); setDialog(false); load();
   };
-  const remove = async (a) => { if (!window.confirm(t("confirmDelete"))) return; await api.delete(`/authorizations/${a.id}`); toast.success(t("deleted")); load(); };
+  const remove = async (a) => {
+    if (!window.confirm(t("confirmDelete"))) return;
+    await api.delete(`/authorizations/${a.id}`);
+    toast.success(t("deleted")); load();
+  };
+
+  const getPlayer = (id) => players.find((p) => p.id === id);
+
+  // Imprimir
+  const doPrint = (a) => {
+    setPrintItem(a);
+    setTimeout(() => window.print(), 300);
+  };
+
+  // Descargar PDF usando html2pdf.js (cargado desde CDN en index.html)
+  const doDownloadPdf = async (a) => {
+    const player = getPlayer(a.player_id);
+    const html = buildAuthHTML(a, player, settings, lang);
+
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    container.style.position = "fixed";
+    container.style.left = "-9999px";
+    container.style.top = "0";
+    document.body.appendChild(container);
+
+    const tipoSlug = (AUTH_TYPES[a.tipo]?.[lang] || a.tipo).toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+    const jugadorSlug = player ? `${player.nombre}_${player.apellidos || ""}`.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "") : "jugador";
+    const filename = `autorizacion_${tipoSlug}_${jugadorSlug}.pdf`;
+
+    if (window.html2pdf) {
+      await window.html2pdf()
+        .set({
+          margin: [10, 10, 10, 10],
+          filename,
+          image: { type: "jpeg", quality: 0.98 },
+          html2canvas: { scale: 2, useCORS: true },
+          jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+        })
+        .from(container)
+        .save();
+    } else {
+      toast.error("html2pdf no disponible. Usa el botón de imprimir.");
+    }
+
+    document.body.removeChild(container);
+  };
 
   const playerOptions = players.map((p) => ({ value: p.id, label: `${p.nombre} ${p.apellidos || ""}`.trim() }));
   const typeOptions = Object.entries(AUTH_TYPES).map(([k, v]) => ({ value: k, label: v[lang] }));
 
-  const doPrint = (a) => {
-    setPrintItem(a);
-    setTimeout(() => window.print(), 200);
-  };
-
   return (
     <div data-testid="authorizations-page">
-      <PageHeader title={t("authorizations")} icon={FileSignature}
-        action={<Button data-testid="add-auth-btn" onClick={openNew} className="h-11 px-5"><Plus className="h-5 w-5" />{t("newAuthorization")}</Button>} />
+      <PageHeader
+        title={t("authorizations")}
+        icon={FileSignature}
+        action={
+          <Button data-testid="add-auth-btn" onClick={openNew} className="h-11 px-5">
+            <Plus className="h-5 w-5" />{t("newAuthorization")}
+          </Button>
+        }
+      />
 
       {auths.length === 0 ? (
-        <EmptyState icon={FileSignature} message={t("noData")} action={<Button onClick={openNew} className="h-11"><Plus className="h-5 w-5" />{t("newAuthorization")}</Button>} />
+        <EmptyState
+          icon={FileSignature}
+          message={t("noData")}
+          action={<Button onClick={openNew} className="h-11"><Plus className="h-5 w-5" />{t("newAuthorization")}</Button>}
+        />
       ) : (
         <div className="rounded-xl border border-white/60 bg-white/70 backdrop-blur-xl overflow-hidden no-print">
           <div className="overflow-x-auto">
@@ -94,9 +276,18 @@ const Authorizations = () => {
                     <td className="px-4 py-3"><StatusBadge status={a.estado} /></td>
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" data-testid={`print-auth-${a.id}`} onClick={() => doPrint(a)} className="text-primary"><Printer className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" data-testid={`edit-auth-${a.id}`} onClick={() => openEdit(a)}><Pencil className="h-4 w-4" /></Button>
-                        <Button variant="ghost" size="icon" data-testid={`delete-auth-${a.id}`} onClick={() => remove(a)} className="text-red-500"><Trash2 className="h-4 w-4" /></Button>
+                        <Button variant="ghost" size="icon" title="Descargar PDF" onClick={() => doDownloadPdf(a)} className="text-emerald-600">
+                          <Download className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" title="Imprimir" data-testid={`print-auth-${a.id}`} onClick={() => doPrint(a)} className="text-primary">
+                          <Printer className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" data-testid={`edit-auth-${a.id}`} onClick={() => openEdit(a)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" data-testid={`delete-auth-${a.id}`} onClick={() => remove(a)} className="text-red-500">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </td>
                   </tr>
@@ -107,53 +298,36 @@ const Authorizations = () => {
         </div>
       )}
 
-      {/* Printable area */}
+      {/* Área imprimible */}
       {printItem && (
-        <div ref={printRef} className="hidden print-area p-10 max-w-2xl mx-auto text-slate-900">
-          <div className="flex items-center gap-4 border-b-2 border-slate-900 pb-4 mb-6">
-            {settings.club_logo && <img src={settings.club_logo} alt="" className="h-16 w-16 object-contain" />}
-            <div>
-              <h1 className="font-heading text-2xl font-bold">{settings.club_nombre || "Ikas-Txiki"}</h1>
-              <p className="text-sm">{settings.club_direccion}</p>
-              <p className="text-sm">{settings.club_email} · {settings.club_telefono}</p>
-            </div>
-          </div>
-          <h2 className="font-heading text-xl font-bold uppercase mb-6 text-center">{AUTH_TYPES[printItem.tipo]?.[lang]}</h2>
-          <p className="leading-loose mb-6">
-            D./Dña. <strong>{printItem.firmante || "________________"}</strong>, como padre/madre/tutor de
-            <strong> {players.find(p=>p.id===printItem.player_id)?.nombre || "________________"} {players.find(p=>p.id===printItem.player_id)?.apellidos || ""}</strong>:
-          </p>
-          <p className="leading-loose mb-8">{TEMPLATE_TEXT[printItem.tipo]}</p>
-          {printItem.tipo === "recogida" && (
-            <p className="leading-loose mb-8">Persona autorizada: <strong>{printItem.persona_autorizada}</strong> — DNI: <strong>{printItem.dni_autorizada}</strong></p>
-          )}
-          {printItem.observaciones && <p className="leading-loose mb-8 italic">{printItem.observaciones}</p>}
-          <div className="mt-16 flex justify-between">
-            <div className="text-center">
-              <div className="border-t border-slate-900 w-48 pt-2">Firma</div>
-            </div>
-            <div className="text-center">
-              <div className="border-t border-slate-900 w-48 pt-2">Fecha: {printItem.fecha_firma || "____________"}</div>
-            </div>
-          </div>
-        </div>
+        <div
+          ref={printRef}
+          className="hidden print-area"
+          dangerouslySetInnerHTML={{ __html: buildAuthHTML(printItem, getPlayer(printItem.player_id), settings, lang) }}
+        />
       )}
 
       <Dialog open={dialog} onOpenChange={setDialog}>
         <DialogContent className="max-w-2xl max-h-[92vh] overflow-y-auto">
-          <DialogHeader><DialogTitle className="font-heading">{form.id ? t("authorizations") : t("newAuthorization")}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle className="font-heading">{form.id ? t("authorizations") : t("newAuthorization")}</DialogTitle>
+          </DialogHeader>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
             <SelectField label={t("name")} value={form.player_id} onChange={set("player_id")} options={playerOptions} testid="auth-player" />
             <SelectField label={t("authType")} value={form.tipo} onChange={set("tipo")} options={typeOptions} testid="auth-tipo" />
             <Field label={t("signer")} value={form.firmante} onChange={set("firmante")} testid="auth-firmante" />
-            <SelectField label={t("status")} value={form.estado} onChange={set("estado")} options={["pendiente","firmada","caducada"].map(s=>({value:s,label:s}))} testid="auth-estado" />
+            <SelectField label={t("status")} value={form.estado} onChange={set("estado")} options={["pendiente","firmada","caducada"].map((s)=>({value:s,label:s}))} testid="auth-estado" />
             <Field label={t("signDate")} type="date" value={form.fecha_firma} onChange={set("fecha_firma")} testid="auth-fecha" />
             <Field label={t("expiryDate")} type="date" value={form.fecha_caducidad} onChange={set("fecha_caducidad")} testid="auth-caducidad" />
-            {form.tipo === "recogida" && <>
-              <Field label={t("authorizedPerson")} value={form.persona_autorizada} onChange={set("persona_autorizada")} testid="auth-persona" />
-              <Field label={t("authorizedDni")} value={form.dni_autorizada} onChange={set("dni_autorizada")} testid="auth-dni" />
-            </>}
-            <div className="sm:col-span-2"><Area label={t("notes")} value={form.observaciones} onChange={set("observaciones")} testid="auth-obs" /></div>
+            {form.tipo === "recogida" && (
+              <>
+                <Field label={t("authorizedPerson")} value={form.persona_autorizada} onChange={set("persona_autorizada")} testid="auth-persona" />
+                <Field label={t("authorizedDni")} value={form.dni_autorizada} onChange={set("dni_autorizada")} testid="auth-dni" />
+              </>
+            )}
+            <div className="sm:col-span-2">
+              <Area label={t("notes")} value={form.observaciones} onChange={set("observaciones")} testid="auth-obs" />
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setDialog(false)}>{t("cancel")}</Button>

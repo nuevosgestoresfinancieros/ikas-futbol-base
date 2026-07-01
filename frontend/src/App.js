@@ -60,7 +60,9 @@ function App() {
 
           {/* Rutas protegidas */}
           <Route path="/*" element={
-            <ProtectedRoute user={user}>
+            user === undefined
+              ? <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 via-white to-emerald-50"><div className="flex flex-col items-center gap-3"><div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" /><p className="text-sm text-slate-400">Cargando...</p></div></div>
+              : <ProtectedRoute user={user}>
               <Layout onLogout={handleLogout} user={user}>
                 <Routes>
                   <Route path="/" element={<Dashboard />} />
@@ -81,7 +83,8 @@ function App() {
                 </Routes>
               </Layout>
             </ProtectedRoute>
-          } />
+          }
+        />
         </Routes>
         <RgpdBanner />
         <Toaster position="top-right" richColors />

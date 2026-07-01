@@ -1,7 +1,10 @@
-from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File
+from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, File, Depends, Cookie, Response, Request
+from fastapi.security import OAuth2PasswordBearer
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
+from jose import JWTError, jwt
+from passlib.context import CryptContext
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 import os
@@ -15,7 +18,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import uuid
 import pandas as pd
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, timedelta
 
 
 ROOT_DIR = Path(__file__).parent
@@ -27,7 +30,71 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url)
 db = client[os.environ['DB_NAME']]
 
+# ── Auth config ──────────────────────────────────────────────
+JWT_SECRET = os.environ.get("JWT_SECRET", "changeme-please-set-in-env")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRE_HOURS = 8
+ADMIN_USER = os.environ.get("ADMIN_USER", "admin")
+ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "admin")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+def create_access_token(data: dict) -> str:
+    expire = datetime.now(timezone.utc) + timedelta(hours=JWT_EXPIRE_HOURS)
+    return jwt.encode({**data, "exp": expire}, JWT_SECRET, algorithm=JWT_ALGORITHM)
+
+async def get_current_user(request: Request):
+    token = request.cookies.get("ikastxiki_session")
+    if not token:
+        raise HTTPException(status_code=401, detail="No autenticado")
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+        username = payload.get("sub")
+        if not username:
+            raise HTTPException(status_code=401, detail="Token inválido")
+        return username
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Sesión expirada")
+
 app = FastAPI(title="Ikas-Txiki Manager API")
+
+# ── Auth endpoints ────────────────────────────────────────────
+@app.post("/api/auth/login")
+async def login(response: Response, data: Dict[str, Any]):
+    username = data.get("username", "")
+    password = data.get("password", "")
+    # Verificar contra usuario admin del .env
+    valid_user = username == ADMIN_USER and password == ADMIN_PASSWORD
+    # También buscar en colección users de MongoDB
+    if not valid_user:
+        db_user = await db["users"].find_one({"username": username})
+        if db_user and pwd_context.verify(password, db_user.get("password_hash", "")):
+            valid_user = True
+    if not valid_user:
+        raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
+    token = create_access_token({"sub": username})
+    response.set_cookie(
+        key="ikastxiki_session",
+        value=token,
+        httponly=True,
+        secure=True,
+        samesite="strict",
+        max_age=JWT_EXPIRE_HOURS * 3600,
+        path="/",
+    )
+    return {"ok": True, "username": username}
+
+
+@app.post("/api/auth/logout")
+async def logout(response: Response):
+    response.delete_cookie(key="ikastxiki_session", path="/")
+    return {"ok": True}
+
+
+@app.get("/api/auth/me")
+async def me(current_user: str = Depends(get_current_user)):
+    return {"username": current_user}
+
+
 api_router = APIRouter(prefix="/api")
 
 
@@ -1253,13 +1320,14 @@ async def import_excel(file: UploadFile = File(...)):
     return {"ok": True, "imported": summary}
 
 
-app.include_router(api_router)
+app.include_router(api_router, dependencies=[Depends(get_current_user)])
 app.mount("/uploads", StaticFiles(directory=str(UPLOADS_DIR)), name="uploads")
 
+cors_origins = os.environ.get('CORS_ORIGINS', 'https://ikasfutbase.cibermedida.es').split(',')
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
-    allow_origins=os.environ.get('CORS_ORIGINS', '*').split(','),
+    allow_origins=cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )

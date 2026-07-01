@@ -3,7 +3,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import {
   LayoutDashboard, Users, Home, Shield, CalendarDays, ClipboardList,
   Euro, FileSignature, Settings as SettingsIcon, Menu, X, Trophy,
-  UserPlus, Dumbbell, BarChart3, MessageSquare, FileText, Search, Shirt
+  UserPlus, Dumbbell, BarChart3, MessageSquare, FileText, Search, Shirt, LogOut
 } from "lucide-react";
 import { useI18n } from "@/i18n";
 import { Button } from "@/components/ui/button";
@@ -92,6 +92,25 @@ const SidebarContent = ({ onNavigate, onSearch }) => {
           </NavLink>
         ))}
       </nav>
+
+      {/* Usuario y cerrar sesión */}
+      <div className="px-3 py-3 border-t border-white/20">
+        {user && (
+          <div className="flex items-center gap-2 mb-2 px-2">
+            <div className="h-7 w-7 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary flex-shrink-0">
+              {user[0]?.toUpperCase()}
+            </div>
+            <span className="text-xs text-slate-600 font-medium truncate">{user}</span>
+          </div>
+        )}
+        <button
+          onClick={onLogout}
+          className="w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+        >
+          <LogOut className="h-4 w-4 flex-shrink-0" />
+          <span>Cerrar sesión</span>
+        </button>
+      </div>
       <div className="px-4 py-5 border-t border-slate-800">
         <LangToggle />
       </div>
@@ -99,7 +118,7 @@ const SidebarContent = ({ onNavigate, onSearch }) => {
   );
 };
 
-const Layout = ({ children }) => {
+const Layout = ({ children, onLogout, user }) => {
   const [open, setOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const location = useLocation();

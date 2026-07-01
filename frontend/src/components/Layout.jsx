@@ -47,7 +47,7 @@ const LangToggle = () => {
   );
 };
 
-const SidebarContent = ({ onNavigate, onSearch }) => {
+const SidebarContent = ({ onNavigate, onSearch, user, onLogout }) => {
   const { t } = useI18n();
   return (
     <div className="flex h-full flex-col">
@@ -146,7 +146,7 @@ const Layout = ({ children, onLogout, user }) => {
       <GlobalSearch open={searchOpen} setOpen={setSearchOpen} />
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex fixed inset-y-0 left-0 w-64 flex-col bg-gradient-to-b from-slate-900 via-slate-900 to-indigo-950 z-30 shadow-2xl">
-        <SidebarContent onSearch={() => setSearchOpen(true)} />
+        <SidebarContent onSearch={() => setSearchOpen(true)} user={user} onLogout={onLogout} />
       </aside>
 
       {/* Mobile drawer */}
@@ -161,7 +161,7 @@ const Layout = ({ children, onLogout, user }) => {
             >
               <X className="h-6 w-6" />
             </button>
-            <SidebarContent onNavigate={() => setOpen(false)} onSearch={() => setSearchOpen(true)} />
+            <SidebarContent onNavigate={() => setOpen(false)} onSearch={() => setSearchOpen(true)} user={user} onLogout={onLogout} />
           </aside>
         </div>
       )}
